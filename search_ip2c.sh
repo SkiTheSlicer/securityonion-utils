@@ -19,4 +19,4 @@ ip=$(expr $n1 + $n2 + $n3 + $o4)
 mysql -u root -D securityonion_db -e 'SELECT * FROM ip2c WHERE 'start_ip'<='$ip' AND 'end_ip'>='$ip''
 
 #MySQL actually has built-in IP Address to Integer notation conversion:
-#mysql -u root -D securityonion_db -e "SELECT *, INET_NTOA(start_ip) AS start_ip_orig, INET_NTOA(end_ip) AS end_ip_orig FROM ip2c WHERE start_ip<=INET_ATON(\"$1\") AND end_ip>=INET_ATON(\"$1\") \G;"
+#mysql -u root -D securityonion_db -e "SELECT *, INET_NTOA(start_ip) AS start_ip_addr, INET_NTOA(end_ip) AS end_ip_addr FROM ip2c WHERE start_ip<=INET_ATON(\"$1\") AND end_ip>=INET_ATON(\"$1\") \G;"
