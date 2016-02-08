@@ -81,3 +81,6 @@ for key_name, package in packages.iteritems():
   #print os.path.join(local_folder_name, minor_path)
   requests_download_file("/".join([ppa_list[0][1], package['Filename']]), os.path.join(local_folder_name, minor_path))
 requests_download_file("/".join([ppa_list[0][1], ppa_list[0][2] + ".gz"]), local_folder_name)
+
+import subprocess
+subprocess.Popen(['mkisofs', '-o', local_folder_name + ".iso", local_folder_name])
