@@ -56,6 +56,8 @@ def find_pcap(cat, date_of_pcap):
     soup2 = retrieve_page("http://malware-traffic-analysis.net/" + date_of_pcap[:4] + "/" + found["href"])
     found2 = soup2.find("a", href=re.compile(".pcap"))
     pcap = "/".join(["http://malware-traffic-analysis.net", date_of_pcap[:4], found["href"].replace("/index.html", ""), found2["href"]])
+    if "index2" in pcap:
+      pcap = pcap.replace("/index2.html", "")
   return pcap
 
 def requests_download_file(url_to_download, local_folder_name):
