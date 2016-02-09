@@ -10,15 +10,15 @@ def requests_webpage(page_to_get):
   r = requests.get(page_to_get)
   return r
 
-def requests_download_file(url_to_download, local_folder_name):
+def requests_download_file(url_to_download, local_dir_name):
   #import requests
   #import os
   r = requests.get(url_to_download, stream=True)
   if r.status_code == 200:
     file_name = r.url.split('?')[0].split('/')[-1]
-    file_path = os.path.join(local_folder_name, file_name)
-    if not os.path.exists(local_folder_name):
-      os.makedirs(local_folder_name)
+    file_path = os.path.join(local_dir_name, file_name)
+    if not os.path.exists(local_dir_name):
+      os.makedirs(local_dir_name)
     print "Downloading " + file_name + "..."
     with open(file_path, 'wb') as binaryfile:
       for chunk in r.iter_content(1024):
@@ -31,13 +31,13 @@ def gzip_decompress_file(full_local_path):
   with gzip.open(full_local_path, 'rb') as f:
     return f.read()
 
-def parse_pkg_list(repo_pkglist_url, local_folder_name):
+def parse_pkg_list(local_pkglist_path, local_dir_name):
   #from collections import OrderedDict
   #import os
   #import json
   #page_array = requests_webpage(repo_pkglist_url).text.split("\n\n")
-  local_repo_file = repo_pkglist_url.split("/")[-1]
-  page_array = gzip_decompress_file(os.path.join(local_folder_name, local_repo_file)).split("\n\n")
+  local_repo_file = os.path.join(local_dir_name, local_pkglist_path)
+  page_array = gzip_decompress_file(local_repo_file).split("\n\n")
   #packages = {};
   packages = OrderedDict()
   for item in page_array:
@@ -54,7 +54,7 @@ def parse_pkg_list(repo_pkglist_url, local_folder_name):
       packages[package['Package']].update(package)
       #print json.dumps(package, indent=2)
   #print json.dumps(packages, indent=2)
-  with open(os.path.join(local_folder_name, 'Packages.json'), 'w') as outfile:
+  with open(os.path.join(local_dir_name, 'Packages.json'), 'w') as outfile:
     json.dump(packages, outfile, indent=2)
   return packages
 
@@ -80,26 +80,28 @@ def main():
     ["so-14-test-x64", "http://ppa.launchpad.net/securityonion/test/ubuntu", "dists/trusty/main/binary-amd64/Packages.gz"],
     ["so-12-stable-x64", "http://ppa.launchpad.net/securityonion/stable/ubuntu", "dists/precise/main/binary-amd64/Packages.gz"],
     ["so-12-test-x64", "http://ppa.launchpad.net/securityonion/test/ubuntu", "dists/precise/main/binary-amd64/Packages.gz"],
-    ["ubu-14-main-x64", "http://us.archive.ubuntu.com/ubuntu", "/dists/trusty/main/binary-amd64/Packages.gz"]
+    ["ubu-14-main-x64", "http://us.archive.ubuntu.com/ubuntu", "dists/trusty/main/binary-amd64/Packages.gz"]
   ]
 
   print 'AVAILABLE REPOSITORIES:'
   for idx, entry in enumerate(repo_list):
     print str(idx) + '\t' + entry[0]
   repo_choice = int(raw_input('Repo number: '))
-  local_folder_name = repo_list[repo_choice][0]
+  local_dir_name = repo_list[repo_choice][0]
+  local_dists_path = os.path.sep.join(repo_list[repo_choice][2].split('/')[:-1])
   repo_base_url = repo_list[repo_choice][1]
   repo_pkglist_url =  "/".join([repo_list[repo_choice][1],repo_list[repo_choice][2]])
+  local_pkglist_path = os.path.sep.join(repo_list[repo_choice][2].split('/'))
 
-  print 'Retrieving Repo ' + local_folder_name + '...'
+  print 'Retrieving Repo ' + local_dir_name + '...'
 
-  if not os.path.exists(local_folder_name):
-    os.makedirs(local_folder_name)
+  if not os.path.exists(local_dir_name):
+    os.makedirs(local_dir_name)
   else:
-    print "Folder \"" + local_folder_name + "\" already exists."
+    print "Folder \"" + local_dir_name + "\" already exists."
 
-  requests_download_file(repo_pkglist_url, local_folder_name)
-  packages = parse_pkg_list(repo_pkglist_url, local_folder_name)
+  requests_download_file(repo_pkglist_url, os.path.join(local_dir_name, local_dists_path))
+  packages = parse_pkg_list(local_pkglist_path, local_dir_name)
   
   size = 0
   for key_name, package in packages.iteritems():
@@ -108,8 +110,8 @@ def main():
   
   for key_name, package in packages.iteritems():
     minor_path = os.path.sep.join(package['Filename'].split('/')[:-1])
-    requests_download_file("/".join([repo_base_url, package['Filename']]), os.path.join(local_folder_name, minor_path))
+    requests_download_file("/".join([repo_base_url, package['Filename']]), os.path.join(local_dir_name, minor_path))
   
-  subprocess.Popen(['mkisofs', '-o', local_folder_name + ".iso", local_folder_name])
+  subprocess.Popen(['mkisofs', '-o', local_dir_name + ".iso", local_dir_name])
   
 main()
