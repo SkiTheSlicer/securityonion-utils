@@ -8,11 +8,6 @@ from collections import OrderedDict
 from math import log
 import subprocess
 
-def requests_webpage(page_to_get):
-  #import requests
-  r = requests.get(page_to_get)
-  return r
-
 def requests_download_file(url_to_download, local_dir_name):
   #import requests
   #import os
@@ -38,7 +33,6 @@ def parse_pkg_list(path_repo_pkglist, dir_local_base):
   #from collections import OrderedDict
   #import os
   #import json
-  #page_array = requests_webpage(url_repo_pkglist).text.split("\n\n")
   local_repo_file = os.path.join(dir_local_base, path_repo_pkglist)
   page_array = gzip_decompress_file(local_repo_file).split("\n\n")
   #packages = {};
@@ -129,7 +123,7 @@ def main():
     binaryfile.write('#!/bin/bash\n')
     binaryfile.write('sudo mount -o loop ' + dir_local_base + '.iso /mnt/\n')
     binaryfile.write('echo "deb file:/mnt/ ' + repo_list[repo_choice][2].split('/')[-1] + " " + repo_list[repo_choice][3].split('/')[0] + '" | sudo tee /etc/apt/sources.list.d/securityonion-cdrom.list\n')
-    binaryfile.write('sudo apt-get update\n')
-    binaryfile.write('sudo apt-get dist-upgrade\n')
+    binaryfile.write('#sudo apt-get update && sudo apt-get dist-upgrade\n')
+    binaryfile.write('sudo /usr/bin/soup\n')
 
 main()
