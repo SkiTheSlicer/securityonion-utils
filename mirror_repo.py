@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# Created by https://github.com/SkiTheSlicer
 import os
 import requests
 import gzip
@@ -71,19 +72,19 @@ def sizeof_fmt(num):
     unit, num_decimals = unit_list[exponent]
     format_string = '{:.%sf} {}' % (num_decimals)
     return format_string.format(quotient, unit)
-  if num == 0:
+  elif num == 0:
     return '0 bytes'
-  if num == 1:
+  elif num == 1:
     return '1 byte'
 
 def main():
   #[short name, url base, url dist, url arch]
   repo_list = [
-    ["so-14-stable-x64", "http://ppa.launchpad.net/securityonion/stable/ubuntu", "dists/trusty", "main/binary-amd64", "Packages.gz"],
-    ["so-14-test-x64", "http://ppa.launchpad.net/securityonion/test/ubuntu", "dists/trusty", "main/binary-amd64", "Packages.gz"],
-    ["so-12-stable-x64", "http://ppa.launchpad.net/securityonion/stable/ubuntu", "dists/precise", "main/binary-amd64", "Packages.gz"],
-    ["so-12-test-x64", "http://ppa.launchpad.net/securityonion/test/ubuntu", "dists/precise", "main/binary-amd64", "Packages.gz"],
-    ["ubu-14-main-x64", "http://us.archive.ubuntu.com/ubuntu", "dists/trusty", "main/binary-amd64", "Packages.gz"]
+    ["so-14-stable-x64", "http://ppa.launchpad.net/securityonion/stable/ubuntu", "dists/trusty", "main/binary-amd64"],
+    ["so-14-test-x64", "http://ppa.launchpad.net/securityonion/test/ubuntu", "dists/trusty", "main/binary-amd64"],
+    ["so-12-stable-x64", "http://ppa.launchpad.net/securityonion/stable/ubuntu", "dists/precise", "main/binary-amd64"],
+    ["so-12-test-x64", "http://ppa.launchpad.net/securityonion/test/ubuntu", "dists/precise", "main/binary-amd64"],
+    ["ubu-14-main-x64", "http://us.archive.ubuntu.com/ubuntu", "dists/trusty", "main/binary-amd64"]
   ]
 
   print 'AVAILABLE REPOSITORIES:'
@@ -106,9 +107,10 @@ def main():
     print "Folder \"" + dir_local_base + "\" already exists."
 
   requests_download_file(url_repo_pkglist, os.path.join(dir_local_base, dir_repo_arch))
-  packages = parse_pkg_list(path_repo_pkglist, dir_local_base)
   for auth_file in ['InRelease', 'Release', 'Release.gpg']:
     requests_download_file("/".join([url_repo_dist, auth_file]), os.path.join(dir_local_base, dir_repo_dist))
+
+  packages = parse_pkg_list(path_repo_pkglist, dir_local_base)
 
   size = 0
   for key_name, package in packages.iteritems():
