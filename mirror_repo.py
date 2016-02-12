@@ -49,7 +49,7 @@ def gzip_decompress_file(full_local_path):
     return f.read()
 
 def parse_pkg_list(local_repo_file):
-  #from collections import OrderedDict
+  from collections import OrderedDict
   #import os
   #import json
   page_array = local_repo_file.split("\n\n")
@@ -68,8 +68,11 @@ def parse_pkg_list(local_repo_file):
           continue
       #packages.append(package)
       #packages[package['Package']] = {};
-      packages[package['Package']] = OrderedDict()
-      packages[package['Package']].update(package)
+      try:
+        packages[package['Package']] = OrderedDict()
+        packages[package['Package']].update(package)
+      except KeyError:
+        print 'ERROR with ' + str(package)
       #print json.dumps(package, indent=2)
   #print json.dumps(packages, indent=2)
   return packages
@@ -90,7 +93,9 @@ def sizeof_fmt(num):
   elif num == 1:
     return '1 byte'
 
-def define_repo_list():
+def define_repo_list(date_now):
+  #import sys
+  print 'Updating Repo Pkg Lists...'
   #[short name, url base, url dist, url arch]
   repo_list = [
     ["so-14-stable-x64", "http://ppa.launchpad.net/securityonion/stable/ubuntu", "dists/trusty", "main/binary-amd64"],
@@ -102,18 +107,41 @@ def define_repo_list():
     ["ntop-14-stable-x64", "http://packages.ntop.org/apt-stable/14.04", "x64", ""],
     ["ntop-14-stable-all", "http://packages.ntop.org/apt-stable/14.04", "all", ""]
   ]
+  for repo in repo_list:
+    if not os.path.exists(''.join(['Packages-', repo[0], '-', date_now, '.gz'])):
+      print repo[0]
+      requests_download_file('/'.join([repo[1],repo[2],repo[3],'Packages.gz']), '.')
+      os.rename('Packages.gz' ,''.join(['Packages-', repo[0], '-', date_now, '.gz']))
+    else:
+      print '  Repo \'' + repo[0] + '\' already downloaded today. Skipping...'
+    if not os.path.exists(''.join(['Packages-', repo[0], '-', date_now, '.json'])):
+      json_pkg_list = parse_pkg_list(gzip_decompress_file(''.join(['Packages-', repo[0], '-', date_now, '.gz'])))
+      with open(''.join(['Packages-', repo[0], '-', date_now, '.json']), 'w') as outfile:
+        json.dump(json_pkg_list, outfile, indent=2)
+    json_pkg_list = json.load(open(''.join(['Packages-', repo[0], '-', date_now, '.json']), 'rb'))
+    size = 0
+    for key_name, package in json_pkg_list.iteritems():
+      size = size + int(package['Size'])
+    repo.append(sizeof_fmt(size))
+    #print "Expected Size of " + repo[0] + ": " + repo[4]
+    #print str(repo)
+  #sys.exit(0)
   return repo_list
 
 def main():
   args = parse_arguments()
-
+  from datetime import datetime
+  date_now = datetime.now().strftime('%Y%m%d')
   if args.update:
+    import sys
     if not 'gz' in args.update:
-      import sys
       print 'Update file doesn\'t end in \'gz\'. Exitting...'
       sys.exit(1)
-  repo_list = define_repo_list()
-  print 'CONFIGURED REPOSITORIES:'
+    elif not os.path.exists(args.update):
+      print 'Update file \'' + args.update + '\' doesn\'t exist. Exitting...'
+      sys.exit(1)
+  repo_list = define_repo_list(date_now)
+  print '\nCONFIGURED REPOSITORIES:'
   for idx, entry in enumerate(repo_list):
     print str(idx) + '\t' + entry[0]
   repo_choice = int(raw_input('Repo number: '))
@@ -125,28 +153,25 @@ def main():
   url_repo_dist = "/".join([repo_list[repo_choice][1],repo_list[repo_choice][2]])
   url_repo_pkglist =  "/".join([repo_list[repo_choice][1],repo_list[repo_choice][2],repo_list[repo_choice][3], "Packages.gz"])
 
-  print 'Retrieving Repo ' + dir_local_base + '...'
+  #print 'Retrieving Repo ' + dir_local_base + '...'
 
-  if not os.path.exists(dir_local_base):
-    os.makedirs(dir_local_base)
-  else:
-    print "Folder \"" + dir_local_base + "\" already exists."
+  #if not os.path.exists(dir_local_base):
+  #  os.makedirs(dir_local_base)
+  #else:
+  #  print "Folder \"" + dir_local_base + "\" already exists."
 
-  requests_download_file(url_repo_pkglist, os.path.join(dir_local_base, dir_repo_arch))
-  if args.iso:
-    for auth_file in ['InRelease', 'Release', 'Release.gpg']:
-      requests_download_file("/".join([url_repo_dist, auth_file]), os.path.join(dir_local_base, dir_repo_dist))
-
-  packages = parse_pkg_list(gzip_decompress_file(os.path.join(dir_local_base, path_repo_pkglist)))
-  with open(os.path.join(os.path.dirname(os.path.join(dir_local_base, path_repo_pkglist)), '.'.join(os.path.basename(os.path.join(dir_local_base, path_repo_pkglist)).split('.')[:-1] + ['json'])), 'w') as outfile:
-    json.dump(packages, outfile, indent=2)
+  #packages = parse_pkg_list(gzip_decompress_file(os.path.join(dir_local_base, path_repo_pkglist)))
+  #with open(os.path.join(os.path.dirname(os.path.join(dir_local_base, path_repo_pkglist)), '.'.join(os.path.basename(os.path.join(dir_local_base, path_repo_pkglist)).split('.')[:-1] + ['json'])), 'w') as outfile:
+  #  json.dump(packages, outfile, indent=2)
+  json_packages_list = json.load(open(''.join(['Packages-', repo_list[repo_choice][0], '-', date_now, '.json']), 'rb'))
+  #json_pkg_list = json.load(open(''.join(['Packages-', repo[0], '-', date_now, '.json']), 'rb'))
 
   if args.apt_get:
     import sys
     print 'Apt-Get: ' + str(args.apt_get)
     apt_deps = []
     for apt_pkg in args.apt_get:
-      for key_name, package in packages.iteritems():
+      for key_name, package in json_packages_list.iteritems():
         if apt_pkg == key_name:
           apt_deps.append(apt_pkg)
           for dep in package['Depends'].split(','):
@@ -160,7 +185,7 @@ def main():
     apt_urls = []
     for apt_dep in apt_deps:
       try:
-        apt_urls.append('/'.join([url_repo_base, packages[apt_dep]['Filename']]))
+        apt_urls.append('/'.join([url_repo_base, json_packages_list[apt_dep]['Filename']]))
       except KeyError:
         #print apt_dep + ' not in ' + dir_local_base
         apt_missing.append(apt_dep)
@@ -171,12 +196,13 @@ def main():
       for idx, entry in enumerate(repo_list):
         print str(idx) + '\t' + entry[0]
       repo_dep_choice = int(raw_input('Alternate Repo number: '))
-      url_alt_repo = "/".join([repo_list[repo_dep_choice][1],repo_list[repo_dep_choice][2],repo_list[repo_dep_choice][3], "Packages.gz"])
-      r = requests.get(url_alt_repo, stream=True)
-      from StringIO import StringIO
-      import gzip
-      str_alt_repo = gzip.GzipFile(fileobj=StringIO(r.content), mode='rb').read()
-      json_alt_repo = parse_pkg_list(str_alt_repo)
+      #url_alt_repo = "/".join([repo_list[repo_dep_choice][1],repo_list[repo_dep_choice][2],repo_list[repo_dep_choice][3], "Packages.gz"])
+      #r = requests.get(url_alt_repo, stream=True)
+      #from StringIO import StringIO
+      #import gzip
+      #str_alt_repo = gzip.GzipFile(fileobj=StringIO(r.content), mode='rb').read()
+      #json_alt_repo = parse_pkg_list(str_alt_repo)
+      json_alt_repo = json.load(open(''.join(['Packages-', repo_list[repo_dep_choice][0], '-', date_now, '.json']), 'rb'))
       apt_still_missing = []
       for apt_pkg in apt_missing:
         try:
@@ -193,25 +219,46 @@ def main():
 
   if not args.update and not args.apt_get:
     size = 0
-    for key_name, package in packages.iteritems():
+    for key_name, package in json_packages_list.iteritems():
       size = size + int(package['Size'])
     print "Expected Repo size: " + sizeof_fmt(size)
-
-    for key_name, package in packages.iteritems():
+    #Add prompt to proceed downloading or to exit.
+    for key_name, package in json_packages_list.iteritems():
       #url_pkg_todownload = "/".join([url_repo_base, package['Filename']])
-      path_pkg_output = os.path.sep.join(package['Filename'].split('/')[:-1])
-      requests_download_file("/".join([url_repo_base, package['Filename']]), os.path.join(dir_local_base, path_pkg_output))
+      if not os.path.exists(os.path.join(dir_local_base, os.path.sep.join(package['Filename'].split('/')))):
+        path_pkg_output = os.path.sep.join(package['Filename'].split('/')[:-1])
+        requests_download_file("/".join([url_repo_base, package['Filename']]), os.path.join(dir_local_base, path_pkg_output))
+      else:
+        print 'Already downloaded \'' + package['Filename'].split('/')[-1] + '\'. Skipping...'
   elif not args.apt_get:
-    packages_old = parse_pkg_list(args.update)
+    print args.update
+    json_old_list = parse_pkg_list(gzip_decompress_file(args.update))
+    #print json.dumps(json_old_list, indent=2)
     #print '<Package>\n\t<Old Version>\n\t<New Version>'
-    for key_name, package in packages.iteritems():
-      if packages_old[key_name]['Filename'] != package['Filename']:
-        #print key_name + '\n\t' + packages_old[key_name]['Filename'] + '\n\t' + package['Filename']
+    for key_name, package in json_packages_list.iteritems():
+      #print key_name
+      #print str(package)
+      #print package['Filename']
+      #print str(json_old_list[key_name])
+      if json_old_list[key_name]['Filename'] != package['Filename']:
+        #print key_name + '\n\t' + json_old_list[key_name]['Filename'] + '\n\t' + package['Filename']
         ##url_pkg_todownload = "/".join([url_repo_base, package['Filename']])
         path_pkg_output = os.path.sep.join(package['Filename'].split('/')[:-1])
         requests_download_file("/".join([url_repo_base, package['Filename']]), os.path.join(dir_local_base, path_pkg_output))
 
+  import shutil
+  if not os.path.exists(os.path.join(dir_local_base, dir_repo_arch)):
+    os.makedirs(os.path.join(dir_local_base, dir_repo_arch))
+  shutil.copyfile(''.join(['Packages-', repo_list[repo_choice][0], '-', date_now, '.gz']), os.path.join(dir_local_base, dir_repo_arch, 'Packages.gz'))
+
+  #requests_download_file(url_repo_pkglist, os.path.join(dir_local_base, dir_repo_arch))
   if args.iso:
+    for auth_file in ['InRelease', 'Release', 'Release.gpg']:
+      if not os.path.exists(os.path.join(dir_local_base, dir_repo_dist, auth_file)):
+        #requests_download_file("/".join([url_repo_base, package['Filename']]), os.path.join(dir_local_base, path_pkg_output))
+        requests_download_file("/".join([url_repo_dist, auth_file]), os.path.join(dir_local_base, dir_repo_dist))
+      else:
+        print 'Already downloaded \'' + auth_file + '\'. Skipping...'
     if args.apt_get:
       try:
         dir_local_base = 'apt-get'
