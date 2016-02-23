@@ -80,8 +80,9 @@ def gzip_decompress_file(full_local_path):
     with gzip.open(full_local_path, 'rb') as f:
         return f.read()
 
-def parse_pkg_list(local_repo_file):
-    page_array = local_repo_file.split("\n\n")
+def parse_pkg_list(str_repo_file, repo_name, dict_repo):
+    page_array = str_repo_file.split("\n\n")
+    """
     #packages = {};
     packages = OrderedDict()
     for item in page_array:
@@ -104,6 +105,36 @@ def parse_pkg_list(local_repo_file):
                 print 'ERROR with ' + str(package)
             #print json.dumps(package, indent=2)
     return packages
+    """
+    dict_repo[repo_name] = OrderedDict()
+    for item in page_array:
+        if len(item) > 0:
+            lines = item.split("\n")
+            dict_pkg = OrderedDict()
+            for line in lines:
+                line_array = line.split(":")
+                if line_array[0] == 'Package' or line_array[0] == 'Version' or \
+                    line_array[0] == 'Filename' or line_array[0] == 'Size':
+                    try:
+                        dict_pkg[line_array[0]] = line_array[1][1:]
+                    except IndexError:
+                        continue
+                elif line_array[0] == 'Depends':
+                    list_pkg_deps = []
+                    for pkg_dep in line_array[1].split(','):
+                        list_pkg_deps.append(pkg_dep.strip().split(' ',1)[0])
+                    try:
+                        dict_pkg[line_array[0]] = list_pkg_deps
+                    except IndexError:
+                        continue
+            try:
+                dict_repo[repo_name][dict_pkg['Package']] = OrderedDict()
+                dict_repo[repo_name][dict_pkg['Package']].update(dict_pkg)
+            except KeyError:
+                print 'ERROR with ' + str(dict_pkg)
+            #print json.dumps(dict_repo, indent=2)
+    return dict_repo
+    
 
 def sizeof_fmt(num):
     # http://stackoverflow.com/questions/1094841/reusable-library-to-get-human-readable-version-of-file-size
@@ -126,14 +157,27 @@ def define_repo_list(date_now):
     repo_list = [
         ["so-14-stable-x64", "http://ppa.launchpad.net/securityonion/stable/ubuntu", "dists/trusty", "main/binary-amd64"],
         ["so-14-test-x64", "http://ppa.launchpad.net/securityonion/test/ubuntu", "dists/trusty", "main/binary-amd64"],
-        ["so-12-stable-x64", "http://ppa.launchpad.net/securityonion/stable/ubuntu", "dists/precise", "main/binary-amd64"],
-        ["so-12-test-x64", "http://ppa.launchpad.net/securityonion/test/ubuntu", "dists/precise", "main/binary-amd64"],
+        ["sift-14-stable-x64", "http://ppa.launchpad.net/sift/stable/ubuntu", "dists/trusty", "main/binary-amd64"],
+        ["remnux-14-stable-x64", "http://ppa.launchpad.net/remnux/stable/ubuntu", "dists/trusty", "main/binary-amd64"],
         ["ubu-14-main-x64", "http://us.archive.ubuntu.com/ubuntu", "dists/trusty", "main/binary-amd64"],
         ["ubu-14-univ-x64", "http://us.archive.ubuntu.com/ubuntu", "dists/trusty", "universe/binary-amd64"],        
         ["ntop-14-stable-x64", "http://packages.ntop.org/apt-stable/14.04", "x64", ""],
-        ["ntop-14-stable-all", "http://packages.ntop.org/apt-stable/14.04", "all", ""]
+        ["ntop-14-stable-all", "http://packages.ntop.org/apt-stable/14.04", "all", ""],
+        ["mysql-14-connector-x64", "http://repo.mysql.com/apt/ubuntu", "dists/trusty", "connector-python-2.1/binary-amd64"],
+        ["inetsim", "http://www.inetsim.org/debian", "binary", ""],
+        ["kali-14-main-x64", "http://http.kali.org/kali", "dists/sana", "main/binary-amd64"],
+        ["kali-14-contrib-x64", "http://http.kali.org/kali", "dists/sana", "contrib/binary-amd64"],
+        ["kali-14-nonfree-x64", "http://http.kali.org/kali", "dists/sana", "non-free/binary-amd64"],
+        ["kali-14-main-x64", "http://http.kali.org/kali", "dists/sana", "main/binary-amd64"],
     ]
+    """Removed
+        ["so-12-stable-x64", "http://ppa.launchpad.net/securityonion/stable/ubuntu", "dists/precise", "main/binary-amd64"],
+        ["so-12-test-x64", "http://ppa.launchpad.net/securityonion/test/ubuntu", "dists/precise", "main/binary-amd64"],
+        ["sift-14-devel-x64", "http://ppa.launchpad.net/sift/stable/ubuntu", "dists/devel", "main/binary-amd64"],
+        ["remnux-14-devel-x64", "http://ppa.launchpad.net/remnux/stable/ubuntu", "dists/devel", "main/binary-amd64"],
+    """
     repos_to_skip = []
+    dict_repo = OrderedDict()
     for repo in repo_list:
         if not os.path.exists(os.path.join('.repo', ''.join(['Packages-', repo[0], '-', date_now, '.gz']))):
             print repo[0].upper() + ':'
@@ -142,16 +186,23 @@ def define_repo_list(date_now):
         else:
             #print 'Repo \'' + repo[0] + '\' already downloaded today. Skipping...'
             repos_to_skip.append(repo[0])
-        if not os.path.exists(os.path.join('.repo', ''.join(['Packages-', repo[0], '-', date_now, '.json']))):
-            json_pkg_list = parse_pkg_list(gzip_decompress_file(os.path.join('.repo', ''.join(['Packages-', repo[0], '-', date_now, '.gz']))))
-            with open(os.path.join('.repo', ''.join(['Packages-', repo[0], '-', date_now, '.json'])), 'w') as outfile:
-                json.dump(json_pkg_list, outfile, indent=2)
-        json_pkg_list = json.load(open(os.path.join('.repo', ''.join(['Packages-', repo[0], '-', date_now, '.json'])), 'rb'))
-        size = 0
-        for key_name, package in json_pkg_list.iteritems():
-            size = size + int(package['Size'])
-        repo.append(sizeof_fmt(size))
+        #if not os.path.exists(os.path.join('.repo', ''.join(['Packages-', repo[0], '-', date_now, '.json']))):
+        if not os.path.exists(os.path.join('.repo', ''.join(['Packages-master-', date_now, '.json']))):    
+            dict_repo = parse_pkg_list(gzip_decompress_file(os.path.join('.repo', ''.join(['Packages-', repo[0], '-', date_now, '.gz']))), repo[0], dict_repo)
+            #with open(os.path.join('.repo', ''.join(['Packages-', repo[0], '-', date_now, '.json'])), 'w') as outfile:
+            #    json.dump(json_pkg_list, outfile, indent=2)
+        #json_pkg_list = json.load(open(os.path.join('.repo', ''.join(['Packages-', repo[0], '-', date_now, '.json'])), 'rb'))
+        #size = 0
+        #for pkg_name, package in json_pkg_list.iteritems():
+        #    size = size + int(package['Size'])
+        #repo.append(sizeof_fmt(size))
         #print "Expected Size of " + repo[0] + ": " + repo[4]
+    if not os.path.exists(os.path.join('.repo', ''.join(['Packages-master-', date_now, '.json']))):
+        with open(os.path.join('.repo', ''.join(['Packages-master-', date_now, '.json'])), 'w') as outfile:
+            json.dump(dict_repo, outfile, indent=2)
+    #else:
+        #dict_repo = json.load(open(os.path.join('.repo', ''.join(['Packages-master-', date_now, '.json'])), 'rb'))
+    # Add loop back in for counting
     if len(repos_to_skip) > 0:
         print 'Repos Already Downloaded Today (Skipped):'
         for repo in repos_to_skip:
@@ -169,6 +220,7 @@ def main():
             print "Update file '" + args.old + "' doesn't exist. Exitting..."
             sys.exit(1)
     repo_list = define_repo_list(date_now)
+    dict_repo = json.load(open(os.path.join('.repo', ''.join(['Packages-master-', date_now, '.json'])), 'rb'))
     print '\nCONFIGURED REPOSITORIES:'
     for idx, entry in enumerate(repo_list):
         print str(idx) + '\t' + entry[0]
@@ -181,7 +233,7 @@ def main():
     url_repo_dist = "/".join([repo_list[repo_choice][1],repo_list[repo_choice][2]])
     url_repo_pkglist =    "/".join([repo_list[repo_choice][1],repo_list[repo_choice][2],repo_list[repo_choice][3], "Packages.gz"])
 
-    json_packages_list = json.load(open(os.path.join('.repo', ''.join(['Packages-', repo_list[repo_choice][0], '-', date_now, '.json'])), 'rb'))
+    #json_packages_list = json.load(open(os.path.join('.repo', ''.join(['Packages-master-', date_now, '.json'])), 'rb'))
 
     pkgs_to_download = []
     pkgs_to_skip = []
@@ -190,12 +242,12 @@ def main():
         print 'Apt-Get: ' + str(args.apt_get)
         apt_deps = []
         for apt_pkg in args.apt_get:
-            for key_name, package in json_packages_list.iteritems():
-                if apt_pkg == key_name:
+            for pkg_name, package in dict_repo[repo_list[repo_choice]].iteritems():
+                if apt_pkg == pkg_name:
                     apt_deps.append(apt_pkg)
-                    for dep in package['Depends'].split(','):
-                        if dep.strip().split(' ',1)[0] not in apt_deps:
-                            apt_deps.append(dep.strip().split(' ',1)[0])
+                    for dep in package['Depends']:
+                        if dep not in apt_deps:
+                            apt_deps.append(dep)
         print 'Depends: ' + str(apt_deps)
         apt_missing = []
         for apt_pkg in args.apt_get:
@@ -204,7 +256,7 @@ def main():
         apt_urls = []
         for apt_dep in apt_deps:
             try:
-                apt_urls.append('/'.join([url_repo_base, json_packages_list[apt_dep]['Filename']]))
+                apt_urls.append('/'.join([url_repo_base, dict_repo[repo_list[repo_choice]][apt_dep]['Filename']]))
             except KeyError:
                 #print apt_dep + ' not in ' + dir_local_base
                 apt_missing.append(apt_dep)
@@ -220,11 +272,11 @@ def main():
             #from StringIO import StringIO
             #str_alt_repo = gzip.GzipFile(fileobj=StringIO(r.content), mode='rb').read()
             #json_alt_repo = parse_pkg_list(str_alt_repo)
-            json_alt_repo = json.load(open(os.path.join('.repo', ''.join(['Packages-', repo_list[repo_dep_choice][0], '-', date_now, '.json'])), 'rb'))
+            #json_alt_repo = json.load(open(os.path.join('.repo', ''.join(['Packages-', repo_list[repo_dep_choice][0], '-', date_now, '.json'])), 'rb'))
             apt_still_missing = []
             for apt_pkg in apt_missing:
                 try:
-                    apt_urls.append('/'.join([repo_list[repo_dep_choice][1], json_alt_repo[apt_pkg]['Filename']]))
+                    apt_urls.append('/'.join([repo_list[repo_dep_choice][1], dict_repo[repo_list[repo_dep_choice]][apt_pkg]['Filename']]))
                 except KeyError:
                     apt_still_missing.append(apt_pkg)
             #print json.dumps(json_alt_repo, indent=2)
@@ -238,33 +290,33 @@ def main():
                     print 'Already downloaded \'' + apt_url.split('/')[-1] + '\'. Skipping...'
     if not args.old and not args.apt_get:
         #size = 0
-        #for key_name, package in json_packages_list.iteritems():
+        #for pkg_name, package in json_packages_list.iteritems():
         #    size = size + int(package['Size'])
         #print 'Expected Download Size: ' + repo_list[repo_choice][4]
         #if not query_yes_no('Continue Download?'):
         #    print 'Exitting...'
         #    sys.exit(1)
-        for key_name, package in json_packages_list.iteritems():
+        for pkg_name, package in dict_repo[repo_list[repo_choice]].iteritems():
             #url_pkg_todownload = "/".join([url_repo_base, package['Filename']])
             if not os.path.exists(os.path.join(dir_local_base, os.path.sep.join(package['Filename'].split('/')))):
                 path_pkg_output = os.path.sep.join(package['Filename'].split('/')[:-1])
                 pkgs_to_download.append(['/'.join([url_repo_base, package['Filename']]), os.path.join(dir_local_base, path_pkg_output), package['Size']])
                 #requests_download_file('/'.join([url_repo_base, package['Filename']]), os.path.join(dir_local_base, path_pkg_output))
             else:
-                pkgs_to_skip.append(key_name)
+                pkgs_to_skip.append(pkg_name)
                 #print 'Already downloaded \'' + package['Filename'].split('/')[-1] + '\'. Skipping...'
     elif not args.apt_get:
         print 'Updating Repo "' + args.old.split(os.path.sep)[-1] + '"...'
         json_old_list = parse_pkg_list(gzip_decompress_file(args.old))
-        for key_name, package in json_packages_list.iteritems():
-            if json_old_list[key_name]['Filename'] != package['Filename']:
+        for pkg_name, package in dict_repo[repo_list[repo_choice]].iteritems():
+            if json_old_list[pkg_name]['Filename'] != package['Filename']:
                 #url_pkg_todownload = "/".join([url_repo_base, package['Filename']])
                 if not os.path.exists(os.path.join(dir_local_base, os.path.sep.join(package['Filename'].split('/')))):
                     path_pkg_output = os.path.sep.join(package['Filename'].split('/')[:-1])
                     pkgs_to_download.append(['/'.join([url_repo_base, package['Filename']]), os.path.join(dir_local_base, path_pkg_output), package['Size']])
                     #requests_download_file('/'.join([url_repo_base, package['Filename']]), os.path.join(dir_local_base, path_pkg_output))
                 else:
-                    pkgs_to_skip.append(key_name)
+                    pkgs_to_skip.append(pkg_name)
                     #print 'Already downloaded \'' + package['Filename'].split('/')[-1] + '\'. Skipping...'
     if len(pkgs_to_download) > 0:
         size = 0
