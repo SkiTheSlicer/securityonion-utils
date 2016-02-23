@@ -126,13 +126,26 @@ def define_repo_list(date_now):
     repo_list = [
         ["so-14-stable-x64", "http://ppa.launchpad.net/securityonion/stable/ubuntu", "dists/trusty", "main/binary-amd64"],
         ["so-14-test-x64", "http://ppa.launchpad.net/securityonion/test/ubuntu", "dists/trusty", "main/binary-amd64"],
+        ["sift-14-stable-x64", "http://ppa.launchpad.net/sift/stable/ubuntu", "dists/trusty", "main/binary-amd64"],
+        ["remnux-14-stable-x64", "http://ppa.launchpad.net/remnux/stable/ubuntu", "dists/trusty", "main/binary-amd64"],
+        ["ubu-14-main-x64", "http://us.archive.ubuntu.com/ubuntu", "dists/trusty", "main/binary-amd64"],
+        ["ubu-14-rest-x64", "http://us.archive.ubuntu.com/ubuntu", "dists/trusty", "restricted/binary-amd64"],
+        ["ubu-14-univ-x64", "http://us.archive.ubuntu.com/ubuntu", "dists/trusty", "universe/binary-amd64"],
+        ["ubu-14-mult-x64", "http://us.archive.ubuntu.com/ubuntu", "dists/trusty", "multiverse/binary-amd64"],
+        ["ntop-14-stable-x64", "http://packages.ntop.org/apt-stable/14.04", "x64", ""],
+        ["ntop-14-stable-all", "http://packages.ntop.org/apt-stable/14.04", "all", ""],
+        ["mysql-14-connector-x64", "http://repo.mysql.com/apt/ubuntu", "dists/trusty", "connector-python-2.1/binary-amd64"],
+        ["inetsim", "http://www.inetsim.org/debian", "binary", ""],
+        ["kali-14-main-x64", "http://http.kali.org/kali", "dists/sana", "main/binary-amd64"],
+        ["kali-14-contrib-x64", "http://http.kali.org/kali", "dists/sana", "contrib/binary-amd64"],
+        ["kali-14-nonfree-x64", "http://http.kali.org/kali", "dists/sana", "non-free/binary-amd64"]
+    ]
+    """Removed
         ["so-12-stable-x64", "http://ppa.launchpad.net/securityonion/stable/ubuntu", "dists/precise", "main/binary-amd64"],
         ["so-12-test-x64", "http://ppa.launchpad.net/securityonion/test/ubuntu", "dists/precise", "main/binary-amd64"],
-        ["ubu-14-main-x64", "http://us.archive.ubuntu.com/ubuntu", "dists/trusty", "main/binary-amd64"],
-        ["ubu-14-univ-x64", "http://us.archive.ubuntu.com/ubuntu", "dists/trusty", "universe/binary-amd64"],        
-        ["ntop-14-stable-x64", "http://packages.ntop.org/apt-stable/14.04", "x64", ""],
-        ["ntop-14-stable-all", "http://packages.ntop.org/apt-stable/14.04", "all", ""]
-    ]
+        ["sift-14-devel-x64", "http://ppa.launchpad.net/sift/stable/ubuntu", "dists/devel", "main/binary-amd64"],
+        ["remnux-14-devel-x64", "http://ppa.launchpad.net/remnux/stable/ubuntu", "dists/devel", "main/binary-amd64"],
+    """
     repos_to_skip = []
     for repo in repo_list:
         if not os.path.exists(os.path.join('.repo', ''.join(['Packages-', repo[0], '-', date_now, '.gz']))):
